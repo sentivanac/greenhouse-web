@@ -1,6 +1,6 @@
 package storage
 
-const TargetPoints = 300
+const TargetPoints = 120
 
 var allowedSteps = []int64{
 	60_000,        // 1 min

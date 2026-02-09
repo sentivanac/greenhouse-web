@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Greenhouse</title>
+    <title>Greenhouse overview</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
@@ -70,13 +70,6 @@
             transition: width 0.3s ease;
         }
 
-        .gauges {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-
-        }
-
         table {
             width: 100%;
             border-collapse: collapse;
@@ -92,71 +85,106 @@
         th {
             background: #f0f0f0;
         }
+
+        .top-layout {
+            display: grid;
+            grid-template-columns: 300px minmax(0, 1fr);
+            gap: 20px;
+        }
+
+        .chart-box {
+            height: 100px;
+        }
+
+        .bottom-layout {
+            display: grid;
+            grid-template-columns: 300px minmax(0, 1fr);
+            gap: 20px;
+        }
     </style>
 </head>
 
 <body>
 
     <div class="container">
-        <h2>Overview</h2>
+        <!-- <h2>Overview</h2> -->
 
-        <div class="gauges">
-            <!-- Temperature box -->
-            <div class="box">
-                <div>Temperature</div>
-                <div class="gauge-bar">
-                    <div class="gauge-fill" id="tempBar"></div>
+        <div class="top-layout">
+            <div class="left">
+                <!-- Temperature box -->
+                <div class="box">
+                    <div>Temperature</div>
+                    <div class="gauge-bar">
+                        <div class="gauge-fill" id="tempBar"></div>
+                    </div>
+                    <div class="gauge">
+                        <span id="tempValue">–</span>
+                        <span class="unit">°C</span>
+                    </div>
                 </div>
-                <div class="gauge">
-                    <span id="tempValue">–</span>
-                    <span class="unit">°C</span>
+
+                <!-- Humidity box -->
+                <div class="box">
+                    <div>Humidity</div>
+                    <div class="gauge-bar">
+                        <div class="gauge-fill" id="humBar" style="background:#36a2eb"></div>
+                    </div>
+                    <div class="gauge">
+                        <span id="humValue">–</span>
+                        <span class="unit">%</span>
+                    </div>
+                </div>
+
+                <!-- Light box -->
+                <div class="box">
+                    <div>Light (max)</div>
+                    <div class="gauge-bar">
+                        <div class="gauge-fill" id="lightBar" style="background:#ffcd56"></div>
+                    </div>
+                    <div class="gauge">
+                        <span id="lightValue">–</span>
+                    </div>
                 </div>
             </div>
+            <div class="right">
+                <div class="box">
+                    <!-- <h3>Recent measurements</h3> -->
 
-            <!-- Humidity box -->
-            <div class="box">
-                <div>Humidity</div>
-                <div class="gauge-bar">
-                    <div class="gauge-fill" id="humBar" style="background:#36a2eb"></div>
-                </div>
-                <div class="gauge">
-                    <span id="humValue">–</span>
-                    <span class="unit">%</span>
-                </div>
-            </div>
-
-            <!-- Light box -->
-            <div class="box">
-                <div>Light (max)</div>
-                <div class="gauge-bar">
-                    <div class="gauge-fill" id="lightBar" style="background:#ffcd56"></div>
-                </div>
-                <div class="gauge">
-                    <span id="lightValue">–</span>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Temp (°C)</th>
+                                <th>Humidity (%)</th>
+                                <th>Light (max)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- rows go here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
-        <div class="box">
-            <h3>Recent measurements</h3>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Temp (°C)</th>
-                        <th>Humidity (%)</th>
-                        <th>Light (max)</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <!-- rows go here -->
-                </tbody>
-            </table>
-        </div>
-
-        <div class="box">
-            <h3>Temperature (last 24h)</h3>
-            <canvas id="tempChart" height="100"></canvas>
+        <div class="bottom-layout">
+            <div class="left">
+                <div class="box">
+                </div>
+            </div>
+            <div class="right">
+                <div class="box">
+                    <div class="chart-box">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <canvas id="humChart"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <canvas id="lightChart"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -237,6 +265,23 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: "Temperature (last 24h)",
+                            font: {
+                                size: 14   // <- manji title
+                            },
+                            padding: {
+                                top: 4,
+                                bottom: 8
+                            }
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
                     scales: {
                         x: {
                             type: "time",
@@ -251,6 +296,104 @@
                             title: {
                                 display: true,
                                 text: "°C"
+                            }
+                        }
+                    }
+                }
+            });
+            /* --- HUMIDITY CHART --- */
+            const humData = rows.map(p => ({
+                x: p.ts,
+                y: p.hum_avg
+            }));
+
+            const humCtx = document.getElementById("humChart").getContext("2d");
+
+            if (window.humChartInstance) {
+                window.humChartInstance.destroy();
+            }
+
+            window.humChartInstance = new Chart(humCtx, {
+                type: "line",
+                data: {
+                    datasets: [{
+                        label: "Humidity (%)",
+                        data: humData,
+                        borderColor: "#36a2eb",
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: "Humidity",
+                            font: { size: 14 }
+                        },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            type: "time",
+                            time: { unit: "hour" },
+                            ticks: { maxTicksLimit: 6 }
+                        },
+                        y: {
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: "%"
+                            }
+                        }
+                    }
+                }
+            });
+            /* --- LIGHT CHART --- */
+            const lightData = rows.map(p => ({
+                x: p.ts,
+                y: p.light_max
+            }));
+
+            const lightCtx = document.getElementById("lightChart").getContext("2d");
+
+            if (window.lightChartInstance) {
+                window.lightChartInstance.destroy();
+            }
+
+            window.lightChartInstance = new Chart(lightCtx, {
+                type: "line",
+                data: {
+                    datasets: [{
+                        label: "Light (max)",
+                        data: lightData,
+                        borderColor: "#ffcd56",
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: "Light (max)",
+                            font: { size: 14 }
+                        },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            type: "time",
+                            time: { unit: "hour" },
+                            ticks: { maxTicksLimit: 6 }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: "ADC"
                             }
                         }
                     }
