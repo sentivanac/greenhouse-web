@@ -164,7 +164,11 @@ func (s *SQLite) GetRangeEnvelope(from, to int64) ([]model.Envelope, int64, erro
 
 		AVG(humidity),
 		MIN(humidity),
-		MAX(humidity)
+		MAX(humidity),
+
+		AVG(light),
+		MIN(light),
+		MAX(light)
 
 	FROM measurements
 	WHERE ts BETWEEN ? AND ?
@@ -184,7 +188,8 @@ func (s *SQLite) GetRangeEnvelope(from, to int64) ([]model.Envelope, int64, erro
 		if err := rows.Scan(
 			&e.Ts,
 			&e.TempAvg, &e.TempMin, &e.TempMax,
-			&e.HumAvg,  &e.HumMin,  &e.HumMax,
+			&e.HumAvg, &e.HumMin, &e.HumMax,
+			&e.LightAvg, &e.LightMin, &e.LightMax,
 		); err != nil {
 			return nil, 0, err
 		}

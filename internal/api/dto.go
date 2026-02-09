@@ -10,6 +10,11 @@ type RangeCombinedPoint struct {
 	HumAvg float64 `json:"hum_avg"`
 	HumMin float64 `json:"hum_min"`
 	HumMax float64 `json:"hum_max"`
+
+
+	LightAvg float64 `json:"light_avg"`
+	LightMin float64 `json:"light_min"`
+	LightMax float64 `json:"light_max"`
 }
 
 type RangeCombinedResponse struct {

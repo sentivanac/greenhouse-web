@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Greenhouse</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f6f6f6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        .box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .gauge {
+            text-align: center;
+        }
+
+        .gauge .label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .gauge .value {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .gauge .unit {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .gauge-bar {
+            width: 100%;
+            height: 20px;
+            background: #eee;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .gauge-fill {
+            height: 100%;
+            width: 0%;
+            background: #ff6384;
+            transition: width 0.3s ease;
+        }
+
+        .gauges {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 6px 8px;
+            text-align: center;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Overview</h2>
+
+        <div class="gauges">
+            <!-- Temperature box -->
+            <div class="box">
+                <div>Temperature</div>
+                <div class="gauge-bar">
+                    <div class="gauge-fill" id="tempBar"></div>
+                </div>
+                <div class="gauge">
+                    <span id="tempValue">–</span>
+                    <span class="unit">°C</span>
+                </div>
+            </div>
+
+            <!-- Humidity box -->
+            <div class="box">
+                <div>Humidity</div>
+                <div class="gauge-bar">
+                    <div class="gauge-fill" id="humBar" style="background:#36a2eb"></div>
+                </div>
+                <div class="gauge">
+                    <span id="humValue">–</span>
+                    <span class="unit">%</span>
+                </div>
+            </div>
+
+            <!-- Light box -->
+            <div class="box">
+                <div>Light (max)</div>
+                <div class="gauge-bar">
+                    <div class="gauge-fill" id="lightBar" style="background:#ffcd56"></div>
+                </div>
+                <div class="gauge">
+                    <span id="lightValue">–</span>
+                </div>
+            </div>
+        </div>
+        <div class="box">
+            <h3>Recent measurements</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Temp (°C)</th>
+                        <th>Humidity (%)</th>
+                        <th>Light (max)</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- rows go here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="box">
+            <h3>Temperature (last 24h)</h3>
+            <canvas id="tempChart" height="100"></canvas>
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            const now = Date.now();
+            const day = 24 * 60 * 60 * 1000;
+
+            const res = await fetch(
+                `/api/range/combined?from=${now - day}&to=${now}`
+            );
+            const payload = await res.json();
+            const rows = payload.data;
+
+            if (!payload.data || payload.data.length === 0) {
+                return;
+            }
+
+            const last = payload.data[payload.data.length - 1];
+
+            /* --- Temperature --- */
+            const temp = last.temp_avg;
+            document.getElementById("tempValue").textContent = temp.toFixed(1);
+            document.getElementById("tempBar").style.width =
+                Math.min(Math.max(temp / 40 * 100, 0), 100) + "%";
+
+            /* --- Humidity --- */
+            const hum = last.hum_avg;
+            document.getElementById("humValue").textContent = hum.toFixed(1);
+            document.getElementById("humBar").style.width =
+                Math.min(Math.max(hum, 0), 100) + "%";
+
+            /* --- Light (max) --- */
+            const light = last.light_max;
+            document.getElementById("lightValue").textContent = light.toFixed(0);
+            document.getElementById("lightBar").style.width =
+                Math.min(light / 4095 * 100, 100) + "%";
+
+            /* --- TABLE --- */
+            const tbody = document.getElementById("tableBody");
+            tbody.innerHTML = "";
+
+            // poslednjih 10 merenja (najnovije gore)
+            rows.slice(-10).reverse().forEach(p => {
+                const tr = document.createElement("tr");
+
+                tr.innerHTML = `
+    <td>${new Date(p.ts).toLocaleString()}</td>
+    <td>${p.temp_avg.toFixed(1)}</td>
+    <td>${p.hum_avg.toFixed(1)}</td>
+    <td>${p.light_max.toFixed(0)}</td>
+  `;
+
+                tbody.appendChild(tr);
+            });
+
+            /* --- TEMPERATURE CHART --- */
+            const tempData = rows.map(p => ({
+                x: p.ts,
+                y: p.temp_avg
+            }));
+
+            const ctx = document.getElementById("tempChart").getContext("2d");
+
+            if (window.tempChartInstance) {
+                window.tempChartInstance.destroy();
+            }
+
+            window.tempChartInstance = new Chart(ctx, {
+                type: "line",
+                data: {
+                    datasets: [{
+                        label: "Temperature (°C)",
+                        data: tempData,
+                        borderColor: "rgb(255, 99, 132)",
+                        tension: 0.2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: "time",
+                            time: {
+                                unit: "hour"
+                            },
+                            ticks: {
+                                maxTicksLimit: 6
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: "°C"
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        loadData();
+    </script>
+
+</body>
+
+</html>

@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func parseRangeOr400(w http.ResponseWriter, r *http.Request) (int64, int64, bool) {
+func DELparseRangeOr400(w http.ResponseWriter, r *http.Request) (int64, int64, bool) {
 	q := r.URL.Query()
 
 	fromStr := q.Get("from")

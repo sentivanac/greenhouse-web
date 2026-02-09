@@ -10,4 +10,8 @@ type Envelope struct {
 	HumAvg float64
 	HumMin float64
 	HumMax float64
+
+	LightAvg float64
+	LightMin float64
+	LightMax float64
 }

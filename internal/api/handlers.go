@@ -99,6 +99,10 @@ func (a *API) RangeCombined(w http.ResponseWriter, r *http.Request) {
 			HumAvg: e.HumAvg,
 			HumMin: e.HumMin,
 			HumMax: e.HumMax,
+
+			LightAvg: e.LightAvg,
+			LightMin: e.LightMin,
+			LightMax: e.LightMax,
 		})
 	}
 
