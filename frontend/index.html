@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Greenhouse</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+        }
+
+        h2 {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Temperature & Humidity</h2>
+    <canvas id="chart"></canvas>
+
+    <script>
+        async function loadData() {
+            const now = Date.now();
+            const day = 24 * 60 * 60 * 1000;
+
+            const res = await fetch(
+                `/api/range/combined?from=${now - day}&to=${now}`
+            );
+
+            const payload = await res.json();
+            console.log(payload); // <-- OBAVEZNO, za mirnu glavu
+
+            // 🔑 OVO JE KLJUČNA RAZLIKA
+            const rows = payload.data;
+
+            const labels = rows.map(p => {
+                const d = new Date(p.ts);
+                return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+            });
+
+            const temperature = rows.map(p => p.temp_avg);
+            const humidity = rows.map(p => p.hum_avg);
+
+            const ctx = document.getElementById("chart").getContext("2d");
+
+            new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Temperature (°C)",
+                            data: temperature,
+                            yAxisID: "yTemp",
+                            borderColor: "rgb(255, 99, 132)",
+                            tension: 0.2,
+                        },
+                        {
+                            label: "Humidity (%)",
+                            data: humidity,
+                            yAxisID: "yHum",
+                            borderColor: "rgb(54, 162, 235)",
+                            tension: 0.2,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: "index",
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxTicksLimit: 12
+                            }
+                        },
+                        yTemp: {
+                            type: "linear",
+                            position: "left",
+                            title: {
+                                display: true,
+                                text: "Temperature (°C)"
+                            }
+                        },
+                        yHum: {
+                            type: "linear",
+                            position: "right",
+                            title: {
+                                display: true,
+                                text: "Humidity (%)"
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        loadData();
+    </script>
+
+</body>
+
+</html>
+s

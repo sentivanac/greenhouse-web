@@ -1,0 +1,101 @@
+openapi: 3.0.3
+info:
+  title: Greenhouse API
+  description: Backend API for sensor data ingestion and visualization
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /api/latest:
+    get:
+      summary: Get latest measurement
+      responses:
+        "200":
+          description: Latest measurement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Measurement"
+        "404":
+          description: No data available
+
+  /api/range/combined:
+    get:
+      summary: Get downsampled range with avg + min/max envelope
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Start timestamp (ms since epoch)
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: End timestamp (ms since epoch)
+      responses:
+        "200":
+          description: Downsampled range data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RangeCombinedResponse"
+        "400":
+          description: Invalid parameters
+        "500":
+          description: Internal error
+
+components:
+  schemas:
+    Measurement:
+      type: object
+      properties:
+        ts:
+          type: integer
+          format: int64
+        t:
+          type: number
+          format: float
+        rh:
+          type: number
+          format: float
+        p:
+          type: number
+          format: float
+        light:
+          type: integer
+
+    Point:
+      type: object
+      properties:
+        ts:
+          type: integer
+          format: int64
+        value:
+          type: number
+          format: float
+
+    RangeCombinedResponse:
+      type: object
+      properties:
+        step:
+          type: integer
+          format: int64
+        avg:
+          type: array
+          items:
+            $ref: "#/components/schemas/Point"
+        min:
+          type: array
+          items:
+            $ref: "#/components/schemas/Point"
+        max:
+          type: array
+          items:
+            $ref: "#/components/schemas/Point"
