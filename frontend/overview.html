@@ -8,6 +8,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/sr.js"></script>
+
     <style>
         body {
             font-family: sans-serif;
@@ -26,7 +30,6 @@
         }
 
         .box {
-            border: 1px solid #ccc;
             padding: 20px;
             margin-bottom: 20px;
             border: 1px solid var(--border);
@@ -149,6 +152,10 @@
             --gauge-bg: #2a2a2a;
             --gauge-track: #3a3a3a;
         }
+
+        .flatpickr-input {
+            width: 80px;
+        }
     </style>
 </head>
 
@@ -200,8 +207,8 @@
                         <thead>
                             <tr>
                                 <th>Time</th>
-                                <th>Temp (°C)</th>
-                                <th>Humidity (%)</th>
+                                <th>Temp [°C]</th>
+                                <th>Humidity [%]</th>
                                 <th>Light (max)</th>
                             </tr>
                         </thead>
@@ -218,12 +225,12 @@
                 <div class="box date-controls">
                     <label>
                         From:
-                        <input type="date" id="fromDate">
+                        <input type="text" id="fromDate">
                     </label>
 
                     <label style="margin-top:10px; display:block">
                         To:
-                        <input type="date" id="toDate">
+                        <input type="text" id="toDate">
                     </label>
 
                     <button id="applyBtn" style="margin-top:15px">
@@ -364,7 +371,7 @@
                             const x1 = xScale.getPixelForValue(t);
                             const x2 = xScale.getPixelForValue(t + hourMs);
 
-                            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                             ctx.fillRect(x1, top, x2 - x1, bottom - top);
                         }
 
@@ -434,6 +441,18 @@
                 plugins: [dayNightPlugin]
             });
         }
+
+        flatpickr.localize(flatpickr.l10ns.sr);
+
+        const fromPicker = flatpickr("#fromDate", {
+            dateFormat: "d.m.Y.",
+            defaultDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        });
+
+        const toPicker = flatpickr("#toDate", {
+            dateFormat: "d.m.Y.",
+            defaultDate: new Date()
+        });
 
         async function loadHistory(from, to) {
             const res = await fetch(
@@ -562,7 +581,7 @@
         }, 2 * 60 * 1000); // 2 min
 
         document.getElementById("applyBtn").addEventListener("click", () => {
-            const range = dayRangeToTs("fromDate", "toDate");
+            const range = dayRangeToTs();
 
             if (!range || range.from >= range.to) {
                 alert("Invalid date range");
@@ -572,31 +591,23 @@
             loadHistory(range.from, range.to);
         });
 
-        function dayRangeToTs(fromId, toId) {
-            const fromVal = document.getElementById(fromId).value;
-            const toVal = document.getElementById(toId).value;
+        function dayRangeToTs() {
+            const from = fromPicker.selectedDates[0];
+            const to = toPicker.selectedDates[0];
 
-            if (!fromVal || !toVal) return null;
+            if (!from || !to) return null;
 
-            const from = new Date(fromVal);
-            from.setHours(0, 0, 0, 0);
+            const fromTs = new Date(from);
+            fromTs.setHours(0, 0, 0, 0);
 
-            const to = new Date(toVal);
-            to.setHours(23, 59, 59, 999);
+            const toTs = new Date(to);
+            toTs.setHours(23, 59, 59, 999);
 
-            return { from: from.getTime(), to: to.getTime() };
+            return {
+                from: fromTs.getTime(),
+                to: toTs.getTime()
+            };
         }
-        (function initDates() {
-            const today = new Date();
-            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-            document.getElementById("toDate").value =
-                today.toISOString().slice(0, 10);
-
-            document.getElementById("fromDate").value =
-                weekAgo.toISOString().slice(0, 10);
-        })();
-
     </script>
 
 </body>
