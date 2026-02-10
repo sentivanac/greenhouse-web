@@ -21,6 +21,7 @@ func main() {
 
 	http.Handle("/", http.FileServer(http.Dir("./frontend")))
 	http.HandleFunc("/api/latest", api.Latest)
+	http.HandleFunc("/api/recent", api.Recent)
 	http.HandleFunc("/api/range/combined", api.RangeCombined)
 
 	go func() {

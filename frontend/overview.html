@@ -8,34 +8,48 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/sr.js"></script>
+
     <style>
         body {
             font-family: sans-serif;
             margin: 0;
             padding: 0;
-            background: #f6f6f6;
+            background: var(--bg);
+            color: var(--text);
         }
 
         .container {
             max-width: 1000px;
             margin: 40px auto;
-            background: #fff;
             padding: 20px;
             box-sizing: border-box;
-        }
-
-        h2 {
-            margin-top: 0;
+            background: var(--panel);
         }
 
         .box {
-            border: 1px solid #ccc;
             padding: 20px;
             margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--grid);
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 6px 8px;
+            text-align: center;
+            color: var(--text);
         }
 
         .gauge {
             text-align: center;
+            color: var(--text);
         }
 
         .gauge .label {
@@ -57,7 +71,7 @@
         .gauge-bar {
             width: 100%;
             height: 20px;
-            background: #eee;
+            background: var(--gauge-track);
             border-radius: 10px;
             overflow: hidden;
             margin: 10px 0;
@@ -75,17 +89,6 @@
             border-collapse: collapse;
         }
 
-        th,
-        td {
-            border: 1px solid #ddd;
-            padding: 6px 8px;
-            text-align: center;
-        }
-
-        th {
-            background: #f0f0f0;
-        }
-
         .top-layout {
             display: grid;
             grid-template-columns: 300px minmax(0, 1fr);
@@ -101,14 +104,64 @@
             grid-template-columns: 300px minmax(0, 1fr);
             gap: 20px;
         }
+
+        .leftalign {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .box.date-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        :root {
+            --bg: #f6f6f6;
+            --panel: #ffffff;
+            --border: #cccccc;
+            --text: #111111;
+            --muted: #666666;
+
+            --grid: rgba(0, 0, 0, 0.08);
+
+            --temp: #ff6384;
+            --hum: #36a2eb;
+            --light: #ffcd56;
+
+            --gauge-bg: #eeeeee;
+            --gauge-track: #dddddd;
+        }
+
+        [data-theme="dark"] {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --border: #333333;
+            --text: #eaeaea;
+            --muted: #aaaaaa;
+
+            --grid: rgba(255, 255, 255, 0.1);
+
+            --temp: #ff7b9c;
+            --hum: #5dade2;
+            --light: #ffd966;
+
+            --gauge-bg: #2a2a2a;
+            --gauge-track: #3a3a3a;
+        }
+
+        .flatpickr-input {
+            width: 80px;
+        }
     </style>
 </head>
 
 <body>
-
     <div class="container">
         <!-- <h2>Overview</h2> -->
-
         <div class="top-layout">
             <div class="left">
                 <!-- Temperature box -->
@@ -154,8 +207,8 @@
                         <thead>
                             <tr>
                                 <th>Time</th>
-                                <th>Temp (°C)</th>
-                                <th>Humidity (%)</th>
+                                <th>Temp [°C]</th>
+                                <th>Humidity [%]</th>
                                 <th>Light (max)</th>
                             </tr>
                         </thead>
@@ -169,7 +222,20 @@
 
         <div class="bottom-layout">
             <div class="left">
-                <div class="box">
+                <div class="box date-controls">
+                    <label>
+                        From:
+                        <input type="text" id="fromDate">
+                    </label>
+
+                    <label style="margin-top:10px; display:block">
+                        To:
+                        <input type="text" id="toDate">
+                    </label>
+
+                    <button id="applyBtn" style="margin-top:15px">
+                        Apply
+                    </button>
                 </div>
             </div>
             <div class="right">
@@ -186,98 +252,157 @@
                 </div>
             </div>
         </div>
+        <div class="leftalign">
+            <button id="themeToggle">Toggle theme</button>
+        </div>
     </div>
 
     <script>
-        async function loadData() {
-            const now = Date.now();
-            const day = 24 * 60 * 60 * 1000;
+        const root = document.documentElement;
 
-            const res = await fetch(
-                `/api/range/combined?from=${now - day}&to=${now}`
-            );
-            const payload = await res.json();
-            const rows = payload.data;
+        function setTheme(theme) {
+            root.setAttribute("data-theme", theme);
+            localStorage.setItem("theme", theme);
+        }
 
-            if (!payload.data || payload.data.length === 0) {
-                return;
-            }
+        document.getElementById("themeToggle").onclick = () => {
+            const current = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+            setTheme(current);
+            loadHistory(lastFrom, lastTo); // rerender charts
+        };
 
-            const last = payload.data[payload.data.length - 1];
+        // init
+        const saved = localStorage.getItem("theme") || "light";
+        setTheme(saved);
+        async function loadRecent() {
+            const res = await fetch("/api/recent?limit=10");
+            const rows = await res.json();
 
-            /* --- Temperature --- */
-            const temp = last.temp_avg;
-            document.getElementById("tempValue").textContent = temp.toFixed(1);
-            document.getElementById("tempBar").style.width =
-                Math.min(Math.max(temp / 40 * 100, 0), 100) + "%";
-
-            /* --- Humidity --- */
-            const hum = last.hum_avg;
-            document.getElementById("humValue").textContent = hum.toFixed(1);
-            document.getElementById("humBar").style.width =
-                Math.min(Math.max(hum, 0), 100) + "%";
-
-            /* --- Light (max) --- */
-            const light = last.light_max;
-            document.getElementById("lightValue").textContent = light.toFixed(0);
-            document.getElementById("lightBar").style.width =
-                Math.min(light / 4095 * 100, 100) + "%";
-
-            /* --- TABLE --- */
             const tbody = document.getElementById("tableBody");
             tbody.innerHTML = "";
 
-            // poslednjih 10 merenja (najnovije gore)
-            rows.slice(-10).reverse().forEach(p => {
+            rows.forEach(p => {
                 const tr = document.createElement("tr");
-
                 tr.innerHTML = `
-    <td>${new Date(p.ts).toLocaleString()}</td>
-    <td>${p.temp_avg.toFixed(1)}</td>
-    <td>${p.hum_avg.toFixed(1)}</td>
-    <td>${p.light_max.toFixed(0)}</td>
-  `;
-
+      <td>${new Date(p.ts).toLocaleString("sr-Latn-RS")}</td>
+      <td>${p.t.toFixed(1)}</td>
+      <td>${p.rh.toFixed(1)}</td>
+      <td>${p.light}</td>
+    `;
                 tbody.appendChild(tr);
             });
+        }
 
-            /* --- TEMPERATURE CHART --- */
-            const tempData = rows.map(p => ({
-                x: p.ts,
-                y: p.temp_avg
-            }));
+        function cssVar(name) {
+            return getComputedStyle(document.documentElement)
+                .getPropertyValue(name).trim();
+        }
 
-            const ctx = document.getElementById("tempChart").getContext("2d");
+        function computeRange(data, paddingRatio = 0.1) {
+            if (!data.length) return { min: 0, max: 1 };
 
-            if (window.tempChartInstance) {
-                window.tempChartInstance.destroy();
+            let min = Infinity;
+            let max = -Infinity;
+
+            for (const p of data) {
+                if (p.y < min) min = p.y;
+                if (p.y > max) max = p.y;
             }
 
-            window.tempChartInstance = new Chart(ctx, {
+            if (min === max) {
+                return { min: min - 1, max: max + 1 };
+            }
+
+            const span = max - min;
+            const paddedMin = min - span * paddingRatio;
+            const paddedMax = max + span * paddingRatio;
+
+            const magnitude = Math.pow(10, Math.floor(Math.log10(span)));
+            const niceStep = magnitude / 2;
+
+            const niceMin = Math.floor(paddedMin / niceStep) * niceStep;
+            const niceMax = Math.ceil(paddedMax / niceStep) * niceStep;
+
+            return {
+                min: niceMin,
+                max: niceMax
+            };
+        }
+
+        function makeChart({
+            canvasId,
+            label,
+            data,
+            yLabel,
+            color,
+            yMin,
+            yMax,
+            autoRange = true,
+            instanceKey
+        }) {
+            let lastFrom = null;
+            let lastTo = null;
+            const range = autoRange ? computeRange(data) : { min: yMin, max: yMax };
+            const dayNightPlugin = {
+                id: 'dayNight',
+                beforeDraw(chart) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea) return;
+
+                    const xScale = scales.x;
+                    const { top, bottom } = chartArea;
+
+                    ctx.save();
+
+                    const start = xScale.min;
+                    const end = xScale.max;
+
+                    const hourMs = 60 * 60 * 1000;
+                    let t = start - (start % hourMs);
+
+                    while (t < end) {
+                        const date = new Date(t);
+                        const hour = date.getHours();
+
+                        // noć: 20–06
+                        const isNight = hour >= 20 || hour < 6;
+
+                        if (isNight) {
+                            const x1 = xScale.getPixelForValue(t);
+                            const x2 = xScale.getPixelForValue(t + hourMs);
+
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                            ctx.fillRect(x1, top, x2 - x1, bottom - top);
+                        }
+
+                        t += hourMs;
+                    }
+                    ctx.restore();
+                }
+            };
+            const ctx = document.getElementById(canvasId).getContext("2d");
+
+            if (window[instanceKey]) {
+                window[instanceKey].destroy();
+            }
+
+            window[instanceKey] = new Chart(ctx, {
                 type: "line",
                 data: {
                     datasets: [{
-                        label: "Temperature (°C)",
-                        data: tempData,
-                        borderColor: "rgb(255, 99, 132)",
+                        label,
+                        data,
+                        borderColor: cssVar(color),
+                        borderWidth: 2,
                         tension: 0.2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        title: {
-                            display: true,
-                            text: "Temperature (last 24h)",
-                            font: {
-                                size: 14   // <- manji title
-                            },
-                            padding: {
-                                top: 4,
-                                bottom: 8
-                            }
-                        },
                         legend: {
                             display: false
                         }
@@ -289,119 +414,200 @@
                                 unit: "hour"
                             },
                             ticks: {
-                                maxTicksLimit: 6
+                                maxTicksLimit: 6,
+                                color: cssVar("--text")
+                            },
+                            grid: {
+                                display: false
                             }
                         },
                         y: {
                             title: {
                                 display: true,
-                                text: "°C"
+                                text: yLabel
+                            },
+                            min: range.min,
+                            max: range.max,
+                            grid: {
+                                color: cssVar("--grid")
+                            },
+                            ticks: {
+                                color: cssVar("--text")
+
                             }
                         }
                     }
-                }
-            });
-            /* --- HUMIDITY CHART --- */
-            const humData = rows.map(p => ({
-                x: p.ts,
-                y: p.hum_avg
-            }));
-
-            const humCtx = document.getElementById("humChart").getContext("2d");
-
-            if (window.humChartInstance) {
-                window.humChartInstance.destroy();
-            }
-
-            window.humChartInstance = new Chart(humCtx, {
-                type: "line",
-                data: {
-                    datasets: [{
-                        label: "Humidity (%)",
-                        data: humData,
-                        borderColor: "#36a2eb",
-                        tension: 0.2
-                    }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: "Humidity",
-                            font: { size: 14 }
-                        },
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: {
-                            type: "time",
-                            time: { unit: "hour" },
-                            ticks: { maxTicksLimit: 6 }
-                        },
-                        y: {
-                            min: 0,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: "%"
-                            }
-                        }
-                    }
-                }
-            });
-            /* --- LIGHT CHART --- */
-            const lightData = rows.map(p => ({
-                x: p.ts,
-                y: p.light_max
-            }));
-
-            const lightCtx = document.getElementById("lightChart").getContext("2d");
-
-            if (window.lightChartInstance) {
-                window.lightChartInstance.destroy();
-            }
-
-            window.lightChartInstance = new Chart(lightCtx, {
-                type: "line",
-                data: {
-                    datasets: [{
-                        label: "Light (max)",
-                        data: lightData,
-                        borderColor: "#ffcd56",
-                        tension: 0.2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: "Light (max)",
-                            font: { size: 14 }
-                        },
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: {
-                            type: "time",
-                            time: { unit: "hour" },
-                            ticks: { maxTicksLimit: 6 }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: "ADC"
-                            }
-                        }
-                    }
-                }
+                plugins: [dayNightPlugin]
             });
         }
 
-        loadData();
+        flatpickr.localize(flatpickr.l10ns.sr);
+
+        const fromPicker = flatpickr("#fromDate", {
+            dateFormat: "d.m.Y.",
+            defaultDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        });
+
+        const toPicker = flatpickr("#toDate", {
+            dateFormat: "d.m.Y.",
+            defaultDate: new Date()
+        });
+
+        async function loadHistory(from, to) {
+            const res = await fetch(
+                `/api/range/combined?from=${from}&to=${to}`
+            );
+            const payload = await res.json();
+            const rows = payload.data;
+
+            if (!rows || rows.length === 0) return;
+
+            const dayNightPlugin = {
+                id: 'dayNight',
+                beforeDraw(chart) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea) return;
+
+                    const xScale = scales.x;
+                    const { top, bottom } = chartArea;
+
+                    ctx.save();
+
+                    const start = xScale.min;
+                    const end = xScale.max;
+
+                    const hourMs = 60 * 60 * 1000;
+                    let t = start - (start % hourMs);
+
+                    while (t < end) {
+                        const date = new Date(t);
+                        const hour = date.getHours();
+
+                        // noć: 20–06
+                        const isNight = hour >= 20 || hour < 6;
+
+                        if (isNight) {
+                            const x1 = xScale.getPixelForValue(t);
+                            const x2 = xScale.getPixelForValue(t + hourMs);
+
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+                            ctx.fillRect(x1, top, x2 - x1, bottom - top);
+                        }
+
+                        t += hourMs;
+                    }
+                    ctx.restore();
+                }
+            };
+
+            const tempData = rows.map(p => ({ x: p.ts, y: p.temp_avg }));
+            const humData = rows.map(p => ({ x: p.ts, y: p.hum_avg }));
+            const lightData = rows.map(p => ({ x: p.ts, y: p.light_max }));
+
+            luxon.Settings.defaultLocale = "sr-Latn-RS";
+
+            makeChart({
+                canvasId: "tempChart",
+                label: "Temperature",
+                data: tempData,
+                yLabel: "temp [°C]",
+                color: "--temp",
+                yMin: 0,
+                yMax: 40,
+                instanceKey: "tempChartInstance"
+            });
+
+            makeChart({
+                canvasId: "humChart",
+                label: "Humidity",
+                data: humData,
+                yLabel: "rHum [%]",
+                color: "--hum",
+                yMin: 0,
+                yMax: 100,
+                instanceKey: "humChartInstance",
+                autoRange: false
+            });
+
+            makeChart({
+                canvasId: "lightChart",
+                label: "Light",
+                data: lightData,
+                yLabel: "Light",
+                color: "--light",
+                yMin: 0,
+                yMax: 4095,
+                instanceKey: "lightChartInstance",
+                autoRange: false
+            });
+        }
+
+        async function loadLatest() {
+            const res = await fetch("/api/latest");
+            const data = await res.json();
+
+            // --- GAUGES ---
+            const temp = data.t;
+            document.getElementById("tempValue").textContent = temp.toFixed(1);
+            document.getElementById("tempBar").style.width =
+                Math.min(Math.max(temp / 40 * 100, 0), 100) + "%";
+
+            const hum = data.rh;
+            document.getElementById("humValue").textContent = hum.toFixed(1);
+            document.getElementById("humBar").style.width =
+                Math.min(Math.max(hum, 0), 100) + "%";
+
+            const light = data.light;
+            document.getElementById("lightValue").textContent = light.toFixed(0);
+            document.getElementById("lightBar").style.width =
+                Math.min(light / 4095 * 100, 100) + "%";
+        }
+
+        // initial load
+        loadLatest();
+        loadRecent();
+
+        // default history: last 24h
+        const now = Date.now();
+        lastFrom = now - 24 * 60 * 60 * 1000;
+        lastTo = now;
+
+        loadHistory(now - 24 * 60 * 60 * 1000, now);
+
+        setInterval(() => {
+            loadLatest();
+            loadRecent();
+        }, 2 * 60 * 1000); // 2 min
+
+        document.getElementById("applyBtn").addEventListener("click", () => {
+            const range = dayRangeToTs();
+
+            if (!range || range.from >= range.to) {
+                alert("Invalid date range");
+                return;
+            }
+
+            loadHistory(range.from, range.to);
+        });
+
+        function dayRangeToTs() {
+            const from = fromPicker.selectedDates[0];
+            const to = toPicker.selectedDates[0];
+
+            if (!from || !to) return null;
+
+            const fromTs = new Date(from);
+            fromTs.setHours(0, 0, 0, 0);
+
+            const toTs = new Date(to);
+            toTs.setHours(23, 59, 59, 999);
+
+            return {
+                from: fromTs.getTime(),
+                to: toTs.getTime()
+            };
+        }
     </script>
 
 </body>
