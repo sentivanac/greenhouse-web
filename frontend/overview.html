@@ -221,6 +221,144 @@
             });
         }
 
+        function computeRange(data, paddingRatio = 0.1) {
+            if (!data.length) return { min: 0, max: 1 };
+
+            let min = Infinity;
+            let max = -Infinity;
+
+            for (const p of data) {
+                if (p.y < min) min = p.y;
+                if (p.y > max) max = p.y;
+            }
+
+            if (min === max) {
+                return { min: min - 1, max: max + 1 };
+            }
+
+            const span = max - min;
+            const paddedMin = min - span * paddingRatio;
+            const paddedMax = max + span * paddingRatio;
+
+            const magnitude = Math.pow(10, Math.floor(Math.log10(span)));
+            const niceStep = magnitude / 2;
+
+            const niceMin = Math.floor(paddedMin / niceStep) * niceStep;
+            const niceMax = Math.ceil(paddedMax / niceStep) * niceStep;
+
+            return {
+                min: niceMin,
+                max: niceMax
+            };
+        }
+
+        function makeChart({
+            canvasId,
+            label,
+            data,
+            yLabel,
+            color,
+            yMin,
+            yMax,
+            autoRange = true,
+            instanceKey
+        }) {
+            const range = autoRange ? computeRange(data) : { min: yMin, max: yMax };
+            console.log(range)
+            const dayNightPlugin = {
+                id: 'dayNight',
+                beforeDraw(chart) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea) return;
+
+                    const xScale = scales.x;
+                    const { top, bottom } = chartArea;
+
+                    ctx.save();
+
+                    const start = xScale.min;
+                    const end = xScale.max;
+
+                    const hourMs = 60 * 60 * 1000;
+                    let t = start - (start % hourMs);
+
+                    while (t < end) {
+                        const date = new Date(t);
+                        const hour = date.getHours();
+
+                        // noć: 20–06
+                        const isNight = hour >= 20 || hour < 6;
+
+                        if (isNight) {
+                            const x1 = xScale.getPixelForValue(t);
+                            const x2 = xScale.getPixelForValue(t + hourMs);
+
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+                            ctx.fillRect(x1, top, x2 - x1, bottom - top);
+                        }
+
+                        t += hourMs;
+                    }
+                    ctx.restore();
+                }
+            };
+            const ctx = document.getElementById(canvasId).getContext("2d");
+
+            if (window[instanceKey]) {
+                window[instanceKey].destroy();
+            }
+
+            window[instanceKey] = new Chart(ctx, {
+                type: "line",
+                data: {
+                    datasets: [{
+                        label,
+                        data,
+                        borderColor: color,
+                        borderWidth: 2,
+                        tension: 0.2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: "time",
+                            time: {
+                                unit: "hour"
+                            },
+                            ticks: {
+                                maxTicksLimit: 6
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: yLabel
+                            },
+                            min: range.min,
+                            max: range.max,
+                            grid: {
+                                color: "rgba(0,0,0,0.08)"
+                            }
+                        }
+                    }
+                },
+                plugins: [dayNightPlugin]
+            });
+        }
+
         async function loadHistory(from, to) {
             const res = await fetch(
                 `/api/range/combined?from=${from}&to=${to}`
@@ -230,10 +368,82 @@
 
             if (!rows || rows.length === 0) return;
 
-            // ---- TEMPERATURE GRAPH (ostaje kako već imaš) ----
+            const dayNightPlugin = {
+                id: 'dayNight',
+                beforeDraw(chart) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea) return;
+
+                    const xScale = scales.x;
+                    const { top, bottom } = chartArea;
+
+                    ctx.save();
+
+                    const start = xScale.min;
+                    const end = xScale.max;
+
+                    const hourMs = 60 * 60 * 1000;
+                    let t = start - (start % hourMs);
+
+                    while (t < end) {
+                        const date = new Date(t);
+                        const hour = date.getHours();
+
+                        // noć: 20–06
+                        const isNight = hour >= 20 || hour < 6;
+
+                        if (isNight) {
+                            const x1 = xScale.getPixelForValue(t);
+                            const x2 = xScale.getPixelForValue(t + hourMs);
+
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+                            ctx.fillRect(x1, top, x2 - x1, bottom - top);
+                        }
+
+                        t += hourMs;
+                    }
+                    ctx.restore();
+                }
+            };
+
             const tempData = rows.map(p => ({ x: p.ts, y: p.temp_avg }));
-            // destroy + new Chart(...) — NE MENJAJ
-            // isto važi za humidity i light
+            const humData = rows.map(p => ({ x: p.ts, y: p.hum_avg }));
+            const lightData = rows.map(p => ({ x: p.ts, y: p.light_max }));
+
+            makeChart({
+                canvasId: "tempChart",
+                label: "Temperature",
+                data: tempData,
+                yLabel: "°C",
+                color: "rgb(255, 99, 132)",
+                yMin: 0,
+                yMax: 40,
+                instanceKey: "tempChartInstance"
+            });
+
+            makeChart({
+                canvasId: "humChart",
+                label: "Humidity",
+                data: humData,
+                yLabel: "%",
+                color: "rgb(54, 162, 235)",
+                yMin: 0,
+                yMax: 100,
+                instanceKey: "humChartInstance",
+                autoRange: false
+            });
+
+            makeChart({
+                canvasId: "lightChart",
+                label: "Light",
+                data: lightData,
+                yLabel: "ADC",
+                color: "rgb(255, 205, 86)",
+                yMin: 0,
+                yMax: 4095,
+                instanceKey: "lightChartInstance",
+                autoRange: false
+            });
         }
 
         async function loadLatest() {
