@@ -272,7 +272,7 @@
         };
 
         // init
-        const saved = localStorage.getItem("theme") || "light";
+        const saved = localStorage.getItem("theme") || "dark";
         setTheme(saved);
         async function loadRecent() {
             const res = await fetch("/api/recent?limit=10");
