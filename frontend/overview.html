@@ -170,6 +170,19 @@
         <div class="bottom-layout">
             <div class="left">
                 <div class="box">
+                    <label>
+                        From:
+                        <input type="date" id="fromDate">
+                    </label>
+
+                    <label style="margin-top:10px; display:block">
+                        To:
+                        <input type="date" id="toDate">
+                    </label>
+
+                    <button id="applyBtn" style="margin-top:15px">
+                        Apply
+                    </button>
                 </div>
             </div>
             <div class="right">
@@ -189,219 +202,110 @@
     </div>
 
     <script>
-        async function loadData() {
-            const now = Date.now();
-            const day = 24 * 60 * 60 * 1000;
+        async function loadRecent() {
+            const res = await fetch("/api/recent?limit=10");
+            const rows = await res.json();
 
+            const tbody = document.getElementById("tableBody");
+            tbody.innerHTML = "";
+
+            rows.forEach(p => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+      <td>${new Date(p.ts).toLocaleString()}</td>
+      <td>${p.t.toFixed(1)}</td>
+      <td>${p.rh.toFixed(1)}</td>
+      <td>${p.light}</td>
+    `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadHistory(from, to) {
             const res = await fetch(
-                `/api/range/combined?from=${now - day}&to=${now}`
+                `/api/range/combined?from=${from}&to=${to}`
             );
             const payload = await res.json();
             const rows = payload.data;
 
-            if (!payload.data || payload.data.length === 0) {
-                return;
-            }
+            if (!rows || rows.length === 0) return;
 
-            const last = payload.data[payload.data.length - 1];
+            // ---- TEMPERATURE GRAPH (ostaje kako već imaš) ----
+            const tempData = rows.map(p => ({ x: p.ts, y: p.temp_avg }));
+            // destroy + new Chart(...) — NE MENJAJ
+            // isto važi za humidity i light
+        }
 
-            /* --- Temperature --- */
-            const temp = last.temp_avg;
+        async function loadLatest() {
+            const res = await fetch("/api/latest");
+            const data = await res.json();
+
+            // --- GAUGES ---
+            const temp = data.t;
             document.getElementById("tempValue").textContent = temp.toFixed(1);
             document.getElementById("tempBar").style.width =
                 Math.min(Math.max(temp / 40 * 100, 0), 100) + "%";
 
-            /* --- Humidity --- */
-            const hum = last.hum_avg;
+            const hum = data.rh;
             document.getElementById("humValue").textContent = hum.toFixed(1);
             document.getElementById("humBar").style.width =
                 Math.min(Math.max(hum, 0), 100) + "%";
 
-            /* --- Light (max) --- */
-            const light = last.light_max;
+            const light = data.light;
             document.getElementById("lightValue").textContent = light.toFixed(0);
             document.getElementById("lightBar").style.width =
                 Math.min(light / 4095 * 100, 100) + "%";
-
-            /* --- TABLE --- */
-            const tbody = document.getElementById("tableBody");
-            tbody.innerHTML = "";
-
-            // poslednjih 10 merenja (najnovije gore)
-            rows.slice(-10).reverse().forEach(p => {
-                const tr = document.createElement("tr");
-
-                tr.innerHTML = `
-    <td>${new Date(p.ts).toLocaleString()}</td>
-    <td>${p.temp_avg.toFixed(1)}</td>
-    <td>${p.hum_avg.toFixed(1)}</td>
-    <td>${p.light_max.toFixed(0)}</td>
-  `;
-
-                tbody.appendChild(tr);
-            });
-
-            /* --- TEMPERATURE CHART --- */
-            const tempData = rows.map(p => ({
-                x: p.ts,
-                y: p.temp_avg
-            }));
-
-            const ctx = document.getElementById("tempChart").getContext("2d");
-
-            if (window.tempChartInstance) {
-                window.tempChartInstance.destroy();
-            }
-
-            window.tempChartInstance = new Chart(ctx, {
-                type: "line",
-                data: {
-                    datasets: [{
-                        label: "Temperature (°C)",
-                        data: tempData,
-                        borderColor: "rgb(255, 99, 132)",
-                        tension: 0.2,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: "Temperature (last 24h)",
-                            font: {
-                                size: 14   // <- manji title
-                            },
-                            padding: {
-                                top: 4,
-                                bottom: 8
-                            }
-                        },
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: "time",
-                            time: {
-                                unit: "hour"
-                            },
-                            ticks: {
-                                maxTicksLimit: 6
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: "°C"
-                            }
-                        }
-                    }
-                }
-            });
-            /* --- HUMIDITY CHART --- */
-            const humData = rows.map(p => ({
-                x: p.ts,
-                y: p.hum_avg
-            }));
-
-            const humCtx = document.getElementById("humChart").getContext("2d");
-
-            if (window.humChartInstance) {
-                window.humChartInstance.destroy();
-            }
-
-            window.humChartInstance = new Chart(humCtx, {
-                type: "line",
-                data: {
-                    datasets: [{
-                        label: "Humidity (%)",
-                        data: humData,
-                        borderColor: "#36a2eb",
-                        tension: 0.2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: "Humidity",
-                            font: { size: 14 }
-                        },
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: {
-                            type: "time",
-                            time: { unit: "hour" },
-                            ticks: { maxTicksLimit: 6 }
-                        },
-                        y: {
-                            min: 0,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: "%"
-                            }
-                        }
-                    }
-                }
-            });
-            /* --- LIGHT CHART --- */
-            const lightData = rows.map(p => ({
-                x: p.ts,
-                y: p.light_max
-            }));
-
-            const lightCtx = document.getElementById("lightChart").getContext("2d");
-
-            if (window.lightChartInstance) {
-                window.lightChartInstance.destroy();
-            }
-
-            window.lightChartInstance = new Chart(lightCtx, {
-                type: "line",
-                data: {
-                    datasets: [{
-                        label: "Light (max)",
-                        data: lightData,
-                        borderColor: "#ffcd56",
-                        tension: 0.2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: "Light (max)",
-                            font: { size: 14 }
-                        },
-                        legend: { display: false }
-                    },
-                    scales: {
-                        x: {
-                            type: "time",
-                            time: { unit: "hour" },
-                            ticks: { maxTicksLimit: 6 }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: "ADC"
-                            }
-                        }
-                    }
-                }
-            });
         }
 
-        loadData();
+        // initial load
+        loadLatest();
+        loadRecent();
+
+        // default history: last 24h
+        const now = Date.now();
+        loadHistory(now - 24 * 60 * 60 * 1000, now);
+
+        setInterval(() => {
+            loadLatest();
+            loadRecent();
+        }, 2 * 60 * 1000); // 2 min
+
+        document.getElementById("applyBtn").addEventListener("click", () => {
+            const range = dayRangeToTs("fromDate", "toDate");
+
+            if (!range || range.from >= range.to) {
+                alert("Invalid date range");
+                return;
+            }
+
+            loadHistory(range.from, range.to);
+        });
+
+        function dayRangeToTs(fromId, toId) {
+            const fromVal = document.getElementById(fromId).value;
+            const toVal = document.getElementById(toId).value;
+
+            if (!fromVal || !toVal) return null;
+
+            const from = new Date(fromVal);
+            from.setHours(0, 0, 0, 0);
+
+            const to = new Date(toVal);
+            to.setHours(23, 59, 59, 999);
+
+            return { from: from.getTime(), to: to.getTime() };
+        }
+        (function initDates() {
+            const today = new Date();
+            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+            document.getElementById("toDate").value =
+                today.toISOString().slice(0, 10);
+
+            document.getElementById("fromDate").value =
+                weekAgo.toISOString().slice(0, 10);
+        })();
+
     </script>
 
 </body>

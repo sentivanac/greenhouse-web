@@ -91,6 +91,42 @@ func (s *SQLite) GetLatest() (model.Measurement, error) {
 	return m, err
 }
 
+func (s *SQLite) GetRecent(limit int) ([]model.Measurement, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	query := `
+	SELECT ts, temperature, humidity, pressure, light
+	FROM measurements
+	ORDER BY ts DESC
+	LIMIT ?;
+	`
+
+	rows, err := s.db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []model.Measurement
+	for rows.Next() {
+		var m model.Measurement
+		if err := rows.Scan(
+			&m.Ts,
+			&m.T,
+			&m.RH,
+			&m.P,
+			&m.Light,
+		); err != nil {
+			return nil, err
+		}
+		res = append(res, m)
+	}
+
+	return res, rows.Err()
+}
+
 func (s *SQLite) GetRange(from, to int64) ([]model.Measurement, error) {
 	query := `
 	SELECT ts, temperature, humidity, pressure, light

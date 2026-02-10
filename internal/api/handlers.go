@@ -28,6 +28,25 @@ func (a *API) Latest(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(m)
 }
 
+func (a *API) Recent(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	limit := 10
+	if l := q.Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+		}
+	}
+
+	data, err := a.store.GetRecent(limit)
+	if err != nil {
+		http.Error(w, "no data", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
+}
+
 func (a *API) Range(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
