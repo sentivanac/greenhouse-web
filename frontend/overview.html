@@ -13,29 +13,40 @@
             font-family: sans-serif;
             margin: 0;
             padding: 0;
-            background: #f6f6f6;
+            background: var(--bg);
+            color: var(--text);
         }
 
         .container {
             max-width: 1000px;
             margin: 40px auto;
-            background: #fff;
             padding: 20px;
             box-sizing: border-box;
-        }
-
-        h2 {
-            margin-top: 0;
+            background: var(--panel);
         }
 
         .box {
             border: 1px solid #ccc;
             padding: 20px;
             margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--grid);
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border);
+            padding: 6px 8px;
+            text-align: center;
+            color: var(--text);
         }
 
         .gauge {
             text-align: center;
+            color: var(--text);
         }
 
         .gauge .label {
@@ -57,7 +68,7 @@
         .gauge-bar {
             width: 100%;
             height: 20px;
-            background: #eee;
+            background: var(--gauge-track);
             border-radius: 10px;
             overflow: hidden;
             margin: 10px 0;
@@ -75,17 +86,6 @@
             border-collapse: collapse;
         }
 
-        th,
-        td {
-            border: 1px solid #ddd;
-            padding: 6px 8px;
-            text-align: center;
-        }
-
-        th {
-            background: #f0f0f0;
-        }
-
         .top-layout {
             display: grid;
             grid-template-columns: 300px minmax(0, 1fr);
@@ -101,14 +101,60 @@
             grid-template-columns: 300px minmax(0, 1fr);
             gap: 20px;
         }
+
+        .leftalign {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .box.date-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        :root {
+            --bg: #f6f6f6;
+            --panel: #ffffff;
+            --border: #cccccc;
+            --text: #111111;
+            --muted: #666666;
+
+            --grid: rgba(0, 0, 0, 0.08);
+
+            --temp: #ff6384;
+            --hum: #36a2eb;
+            --light: #ffcd56;
+
+            --gauge-bg: #eeeeee;
+            --gauge-track: #dddddd;
+        }
+
+        [data-theme="dark"] {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --border: #333333;
+            --text: #eaeaea;
+            --muted: #aaaaaa;
+
+            --grid: rgba(255, 255, 255, 0.1);
+
+            --temp: #ff7b9c;
+            --hum: #5dade2;
+            --light: #ffd966;
+
+            --gauge-bg: #2a2a2a;
+            --gauge-track: #3a3a3a;
+        }
     </style>
 </head>
 
 <body>
-
     <div class="container">
         <!-- <h2>Overview</h2> -->
-
         <div class="top-layout">
             <div class="left">
                 <!-- Temperature box -->
@@ -169,7 +215,7 @@
 
         <div class="bottom-layout">
             <div class="left">
-                <div class="box">
+                <div class="box date-controls">
                     <label>
                         From:
                         <input type="date" id="fromDate">
@@ -199,9 +245,28 @@
                 </div>
             </div>
         </div>
+        <div class="leftalign">
+            <button id="themeToggle">Toggle theme</button>
+        </div>
     </div>
 
     <script>
+        const root = document.documentElement;
+
+        function setTheme(theme) {
+            root.setAttribute("data-theme", theme);
+            localStorage.setItem("theme", theme);
+        }
+
+        document.getElementById("themeToggle").onclick = () => {
+            const current = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+            setTheme(current);
+            loadHistory(lastFrom, lastTo); // rerender charts
+        };
+
+        // init
+        const saved = localStorage.getItem("theme") || "light";
+        setTheme(saved);
         async function loadRecent() {
             const res = await fetch("/api/recent?limit=10");
             const rows = await res.json();
@@ -212,13 +277,18 @@
             rows.forEach(p => {
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
-      <td>${new Date(p.ts).toLocaleString()}</td>
+      <td>${new Date(p.ts).toLocaleString("sr-Latn-RS")}</td>
       <td>${p.t.toFixed(1)}</td>
       <td>${p.rh.toFixed(1)}</td>
       <td>${p.light}</td>
     `;
                 tbody.appendChild(tr);
             });
+        }
+
+        function cssVar(name) {
+            return getComputedStyle(document.documentElement)
+                .getPropertyValue(name).trim();
         }
 
         function computeRange(data, paddingRatio = 0.1) {
@@ -263,8 +333,9 @@
             autoRange = true,
             instanceKey
         }) {
+            let lastFrom = null;
+            let lastTo = null;
             const range = autoRange ? computeRange(data) : { min: yMin, max: yMax };
-            console.log(range)
             const dayNightPlugin = {
                 id: 'dayNight',
                 beforeDraw(chart) {
@@ -314,7 +385,7 @@
                     datasets: [{
                         label,
                         data,
-                        borderColor: color,
+                        borderColor: cssVar(color),
                         borderWidth: 2,
                         tension: 0.2,
                         pointRadius: 0,
@@ -336,7 +407,8 @@
                                 unit: "hour"
                             },
                             ticks: {
-                                maxTicksLimit: 6
+                                maxTicksLimit: 6,
+                                color: cssVar("--text")
                             },
                             grid: {
                                 display: false
@@ -350,7 +422,11 @@
                             min: range.min,
                             max: range.max,
                             grid: {
-                                color: "rgba(0,0,0,0.08)"
+                                color: cssVar("--grid")
+                            },
+                            ticks: {
+                                color: cssVar("--text")
+
                             }
                         }
                     }
@@ -410,12 +486,14 @@
             const humData = rows.map(p => ({ x: p.ts, y: p.hum_avg }));
             const lightData = rows.map(p => ({ x: p.ts, y: p.light_max }));
 
+            luxon.Settings.defaultLocale = "sr-Latn-RS";
+
             makeChart({
                 canvasId: "tempChart",
                 label: "Temperature",
                 data: tempData,
-                yLabel: "°C",
-                color: "rgb(255, 99, 132)",
+                yLabel: "temp [°C]",
+                color: "--temp",
                 yMin: 0,
                 yMax: 40,
                 instanceKey: "tempChartInstance"
@@ -425,8 +503,8 @@
                 canvasId: "humChart",
                 label: "Humidity",
                 data: humData,
-                yLabel: "%",
-                color: "rgb(54, 162, 235)",
+                yLabel: "rHum [%]",
+                color: "--hum",
                 yMin: 0,
                 yMax: 100,
                 instanceKey: "humChartInstance",
@@ -437,8 +515,8 @@
                 canvasId: "lightChart",
                 label: "Light",
                 data: lightData,
-                yLabel: "ADC",
-                color: "rgb(255, 205, 86)",
+                yLabel: "Light",
+                color: "--light",
                 yMin: 0,
                 yMax: 4095,
                 instanceKey: "lightChartInstance",
@@ -473,6 +551,9 @@
 
         // default history: last 24h
         const now = Date.now();
+        lastFrom = now - 24 * 60 * 60 * 1000;
+        lastTo = now;
+
         loadHistory(now - 24 * 60 * 60 * 1000, now);
 
         setInterval(() => {
