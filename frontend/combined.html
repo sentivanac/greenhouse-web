@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Greenhouse</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Time adapter (Luxon) -->
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 1000px;
+      margin: 40px auto;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Temperature & Humidity</h2>
+<canvas id="chart"></canvas>
+
+<script>
+async function loadData() {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+
+  const res = await fetch(
+    `/api/range/combined?from=${now - day}&to=${now}`
+  );
+
+  const payload = await res.json();
+  console.log(payload); // uvek ostavi dok ne završiš UI
+
+  const rows = payload.data;
+
+  /* ---- DATASETI KAO {x, y} ---- */
+  const tempPoints = rows.map(p => ({
+    x: p.ts,           // timestamp u ms
+    y: p.temp_avg
+  }));
+
+  const humPoints = rows.map(p => ({
+    x: p.ts,
+    y: p.hum_avg
+  }));
+
+  const ctx = document.getElementById("chart").getContext("2d");
+
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          label: "Temperature (°C)",
+          data: tempPoints,
+          yAxisID: "yTemp",
+          borderColor: "rgb(255, 99, 132)",
+          tension: 0.2,
+        },
+        {
+          label: "Humidity (%)",
+          data: humPoints,
+          yAxisID: "yHum",
+          borderColor: "rgb(54, 162, 235)",
+          tension: 0.2,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: "index",
+        intersect: false,
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: {
+            unit: "hour",           // automatski pređe na day kad treba
+            displayFormats: {
+              hour: "HH:mm",
+              day: "dd.MM"
+            }
+          },
+          ticks: {
+            source: "auto",
+            maxTicksLimit: 6
+          }
+        },
+        yTemp: {
+          type: "linear",
+          position: "left",
+          title: {
+            display: true,
+            text: "Temperature (°C)"
+          }
+        },
+        yHum: {
+          type: "linear",
+          position: "right",
+          title: {
+            display: true,
+            text: "Humidity (%)"
+          },
+          grid: {
+            drawOnChartArea: false
+          }
+        }
+      }
+    }
+  });
+}
+
+loadData();
+</script>
+
+</body>
+</html>

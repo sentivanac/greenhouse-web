@@ -25,8 +25,8 @@ func main() {
 	http.HandleFunc("/api/range/combined", api.RangeCombined)
 
 	go func() {
-		log.Println("HTTP listening on :8080")
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		log.Println("HTTP listening on :60080")
+		log.Fatal(http.ListenAndServe(":60080", nil))
 	}()
 
 	mqtt.New(
