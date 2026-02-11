@@ -6,4 +6,5 @@ type Measurement struct {
 	RH    float64 `json:"rh"`
 	P     float64 `json:"p"`
 	Light int     `json:"light"`
+	Soil  int     `json:"soil"`
 }

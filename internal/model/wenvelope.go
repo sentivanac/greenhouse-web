@@ -14,4 +14,8 @@ type Envelope struct {
 	LightAvg float64
 	LightMin float64
 	LightMax float64
+
+	SoilAvg float64
+	SoilMin float64
+	SoilMax float64
 }

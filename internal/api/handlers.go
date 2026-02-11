@@ -122,6 +122,10 @@ func (a *API) RangeCombined(w http.ResponseWriter, r *http.Request) {
 			LightAvg: e.LightAvg,
 			LightMin: e.LightMin,
 			LightMax: e.LightMax,
+
+			SoilAvg: e.SoilAvg,
+			SoilMin: e.SoilMin,
+			SoilMax: e.SoilMax,
 		})
 	}
 

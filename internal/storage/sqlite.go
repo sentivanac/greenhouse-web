@@ -34,7 +34,8 @@ func (s *SQLite) init() error {
 		temperature REAL,
 		humidity REAL,
 		pressure REAL,
-		light INTEGER
+		light INTEGER,
+		soil INTEGER
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_measurements_ts
@@ -46,8 +47,8 @@ func (s *SQLite) init() error {
 
 func (s *SQLite) Insert(m model.Measurement) error {
 	query := `
-	INSERT INTO measurements (ts, temperature, humidity, pressure, light)
-	VALUES (?, ?, ?, ?, ?);
+	INSERT INTO measurements (ts, temperature, humidity, pressure, light, soil)
+	VALUES (?, ?, ?, ?, ?, ?);
 	`
 
 	_, err := s.db.Exec(
@@ -57,6 +58,7 @@ func (s *SQLite) Insert(m model.Measurement) error {
 		m.RH,
 		m.P,
 		m.Light,
+		m.Soil,
 	)
 
 	return err
@@ -71,7 +73,7 @@ func (s *SQLite) Count() (int, error) {
 
 func (s *SQLite) GetLatest() (model.Measurement, error) {
 	query := `
-	SELECT ts, temperature, humidity, pressure, light
+	SELECT ts, temperature, humidity, pressure, light, soil
 	FROM measurements
 	ORDER BY ts DESC
 	LIMIT 1;
@@ -86,6 +88,7 @@ func (s *SQLite) GetLatest() (model.Measurement, error) {
 		&m.RH,
 		&m.P,
 		&m.Light,
+		&m.Soil,
 	)
 
 	return m, err
@@ -97,7 +100,7 @@ func (s *SQLite) GetRecent(limit int) ([]model.Measurement, error) {
 	}
 
 	query := `
-	SELECT ts, temperature, humidity, pressure, light
+	SELECT ts, temperature, humidity, pressure, light, soil
 	FROM measurements
 	ORDER BY ts DESC
 	LIMIT ?;
@@ -118,6 +121,7 @@ func (s *SQLite) GetRecent(limit int) ([]model.Measurement, error) {
 			&m.RH,
 			&m.P,
 			&m.Light,
+			&m.Soil,
 		); err != nil {
 			return nil, err
 		}
@@ -129,7 +133,7 @@ func (s *SQLite) GetRecent(limit int) ([]model.Measurement, error) {
 
 func (s *SQLite) GetRange(from, to int64) ([]model.Measurement, error) {
 	query := `
-	SELECT ts, temperature, humidity, pressure, light
+	SELECT ts, temperature, humidity, pressure, light, soil
 	FROM measurements
 	WHERE ts >= ? AND ts <= ?
 	ORDER BY ts;
@@ -144,7 +148,7 @@ func (s *SQLite) GetRange(from, to int64) ([]model.Measurement, error) {
 	var res []model.Measurement
 	for rows.Next() {
 		var m model.Measurement
-		if err := rows.Scan(&m.Ts, &m.T, &m.RH, &m.P, &m.Light); err != nil {
+		if err := rows.Scan(&m.Ts, &m.T, &m.RH, &m.P, &m.Light, &m.Soil); err != nil {
 			return nil, err
 		}
 		res = append(res, m)
@@ -162,7 +166,8 @@ func (s *SQLite) GetRangeDownsampled(from, to int64) ([]model.Measurement, int64
 		AVG(temperature)        AS temperature,
 		AVG(humidity)           AS humidity,
 		AVG(pressure)           AS pressure,
-		AVG(light)              AS light
+		AVG(light)              AS light,
+		AVG(soil)               AS soil,
 	FROM measurements
 	WHERE ts BETWEEN ? AND ?
 	GROUP BY bucket
@@ -178,7 +183,7 @@ func (s *SQLite) GetRangeDownsampled(from, to int64) ([]model.Measurement, int64
 	var res []model.Measurement
 	for rows.Next() {
 		var m model.Measurement
-		if err := rows.Scan(&m.Ts, &m.T, &m.RH, &m.P, &m.Light); err != nil {
+		if err := rows.Scan(&m.Ts, &m.T, &m.RH, &m.P, &m.Light, &m.Soil); err != nil {
 			return nil, 0, err
 		}
 		res = append(res, m)
@@ -206,6 +211,10 @@ func (s *SQLite) GetRangeEnvelope(from, to int64) ([]model.Envelope, int64, erro
 		MIN(light),
 		MAX(light)
 
+		AVG(soil),
+		MIN(soil),
+		MAX(soil)
+
 	FROM measurements
 	WHERE ts BETWEEN ? AND ?
 	GROUP BY bucket
@@ -226,6 +235,7 @@ func (s *SQLite) GetRangeEnvelope(from, to int64) ([]model.Envelope, int64, erro
 			&e.TempAvg, &e.TempMin, &e.TempMax,
 			&e.HumAvg, &e.HumMin, &e.HumMax,
 			&e.LightAvg, &e.LightMin, &e.LightMax,
+			&e.SoilAvg, &e.SoilMin, &e.SoilMax,
 		); err != nil {
 			return nil, 0, err
 		}

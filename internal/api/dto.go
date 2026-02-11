@@ -15,6 +15,10 @@ type RangeCombinedPoint struct {
 	LightAvg float64 `json:"light_avg"`
 	LightMin float64 `json:"light_min"`
 	LightMax float64 `json:"light_max"`
+
+	SoilAvg float64 `json:"soil_avg"`
+	SoilMin float64 `json:"soil_min"`
+	SoilMax float64 `json:"soil_max"`
 }
 
 type RangeCombinedResponse struct {
