@@ -211,9 +211,9 @@ func (s *SQLite) GetRangeEnvelope(from, to int64) ([]model.Envelope, int64, erro
 		MIN(light),
 		MAX(light),
 
-		AVG(soil),
-		MIN(soil),
-		MAX(soil)
+		AVG(soil) * 100 / 4095,
+		MIN(soil) * 100 / 4095,
+		MAX(soil) * 100 / 4095
 
 	FROM measurements
 	WHERE ts BETWEEN ? AND ?
