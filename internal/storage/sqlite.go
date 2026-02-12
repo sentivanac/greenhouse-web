@@ -209,7 +209,7 @@ func (s *SQLite) GetRangeEnvelope(from, to int64) ([]model.Envelope, int64, erro
 
 		AVG(light),
 		MIN(light),
-		MAX(light)
+		MAX(light),
 
 		AVG(soil),
 		MIN(soil),
