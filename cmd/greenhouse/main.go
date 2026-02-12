@@ -9,6 +9,8 @@ import (
 	"greenhouse/internal/model"
 	"greenhouse/internal/mqtt"
 	"greenhouse/internal/storage"
+
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -31,7 +33,7 @@ func main() {
 
 	mqtt.New(
 		"tcp://broker.emqx.io:1883",
-		"ghpep-backend",
+		"ghpep-backend-" + uuid.NewString(),
 		"ghpep/params",
 		func(m model.Measurement) {
 			m.Ts = time.Now().UnixMilli()
