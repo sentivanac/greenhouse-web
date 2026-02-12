@@ -131,6 +131,7 @@
             --temp: #ff6384;
             --hum: #36a2eb;
             --light: #ffcd56;
+            --soil: #8bc34a;
 
             --gauge-bg: #eeeeee;
             --gauge-track: #dddddd;
@@ -148,6 +149,7 @@
             --temp: #ff7b9c;
             --hum: #5dade2;
             --light: #ffd966;
+            --soil: #9ccc65;
 
             --gauge-bg: #2a2a2a;
             --gauge-track: #3a3a3a;
@@ -331,10 +333,8 @@
 
         function makeChart({
             canvasId,
-            label,
-            data,
+            datasets,
             yLabel,
-            color,
             yMin,
             yMax,
             autoRange = true,
@@ -342,7 +342,11 @@
         }) {
             let lastFrom = null;
             let lastTo = null;
-            const range = autoRange ? computeRange(data) : { min: yMin, max: yMax };
+            const allPoints = datasets.flatMap(ds => ds.values);
+
+            const range = autoRange
+                ? computeRange(allPoints)
+                : { min: yMin, max: yMax };
             const dayNightPlugin = {
                 id: 'dayNight',
                 beforeDraw(chart) {
@@ -389,15 +393,15 @@
             window[instanceKey] = new Chart(ctx, {
                 type: "line",
                 data: {
-                    datasets: [{
-                        label,
-                        data,
-                        borderColor: cssVar(color),
+                    datasets: datasets.map(ds => ({
+                        label: ds.label,
+                        data: ds.values,
+                        borderColor: cssVar(ds.color),
                         borderWidth: 2,
                         tension: 0.2,
                         pointRadius: 0,
                         pointHoverRadius: 0
-                    }]
+                    }))
                 },
                 options: {
                     responsive: true,
@@ -504,30 +508,45 @@
             const tempData = rows.map(p => ({ x: p.ts, y: p.temp_avg }));
             const humData = rows.map(p => ({ x: p.ts, y: p.hum_avg }));
             const lightData = rows.map(p => ({ x: p.ts, y: p.light_max }));
+            const soilData = rows.map(p => ({ x: p.ts, y: p.soil_avg }));
 
             luxon.Settings.defaultLocale = "sr-Latn-RS";
 
             makeChart({
                 canvasId: "tempChart",
-                label: "Temperature",
-                data: tempData,
                 yLabel: "temp [°C]",
-                color: "--temp",
                 yMin: 0,
                 yMax: 40,
-                instanceKey: "tempChartInstance"
+                instanceKey: "tempChartInstance",
+                datasets: [
+                    {
+                        label: "Temperature",
+                        values: tempData,
+                        color: "--temp"
+                    }
+                ]
             });
 
             makeChart({
                 canvasId: "humChart",
                 label: "Humidity",
-                data: humData,
                 yLabel: "rHum [%]",
-                color: "--hum",
                 yMin: 0,
                 yMax: 100,
                 instanceKey: "humChartInstance",
-                autoRange: false
+                autoRange: false,
+                datasets: [
+                    {
+                        label: "Air humidity",
+                        values: humData,
+                        color: "--hum"
+                    },
+                    {
+                        label: "Soil moisture",
+                        values: soilData,
+                        color: "--soil"
+                    }
+                ]
             });
 
             makeChart({
@@ -539,7 +558,14 @@
                 yMin: 0,
                 yMax: 4095,
                 instanceKey: "lightChartInstance",
-                autoRange: false
+                autoRange: false,
+                datasets: [
+                    {
+                        label: "Light",
+                        values: lightData,
+                        color: "--light"
+                    }
+                ]
             });
         }
 
