@@ -47,20 +47,24 @@
             color: var(--text);
         }
 
-        .gauge {
-            text-align: center;
-            color: var(--text);
-        }
-
         .gauge .label {
             font-size: 14px;
             color: #666;
         }
 
-        .gauge .value {
-            font-size: 48px;
-            font-weight: bold;
-            margin: 10px 0;
+        .gauge-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .gauge-item {
+            margin-bottom: 46px;
+        }
+
+        .gauge-item:last-child {
+            margin-bottom: 0;
         }
 
         .gauge .unit {
@@ -166,56 +170,72 @@
         <!-- <h2>Overview</h2> -->
         <div class="top-layout">
             <div class="left">
-                <!-- Temperature box -->
                 <div class="box">
-                    <div>Temperature</div>
-                    <div class="gauge-bar">
-                        <div class="gauge-fill" id="tempBar"></div>
+                    <!-- Temperature box -->
+                    <div class="gauge-item">
+                        <div class="gauge-header">
+                            <span>Temperature</span>
+                            <span>
+                                <span id="tempValue">–</span>
+                                <span class="unit">°C</span>
+                            </span>
+                        </div>
+                        <div class="gauge-bar">
+                            <div class="gauge-fill" id="tempBar"></div>
+                        </div>
                     </div>
-                    <div class="gauge">
-                        <span id="tempValue">–</span>
-                        <span class="unit">°C</span>
+                    <!-- Humidity box -->
+                    <div class="gauge-item">
+                        <div class="gauge-header">
+                            <span>Humidity</span>
+                            <span>
+                                <span id="humValue">–</span>
+                                <span class="unit">%</span>
+                            </span>
+                        </div>
+                        <div class="gauge-bar">
+                            <div class="gauge-fill" id="humBar" style="background:#36a2eb"></div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Humidity box -->
-                <div class="box">
-                    <div>Humidity</div>
-                    <div class="gauge-bar">
-                        <div class="gauge-fill" id="humBar" style="background:#36a2eb"></div>
+                    <!-- Soil box -->
+                    <div class="gauge-item">
+                        <div class="gauge-header">
+                            <span>Soil</span>
+                            <span>
+                                <span id="soilValue">–</span>
+                                <span class="unit">%</span>
+                            </span>
+                        </div>
+                        <div class="gauge-bar">
+                            <div class="gauge-fill" id="soilBar" style="background:#8bc34a"></div>
+                        </div>
                     </div>
-                    <div class="gauge">
-                        <span id="humValue">–</span>
-                        <span class="unit">%</span>
-                    </div>
-                </div>
-
-                <!-- Light box -->
-                <div class="box">
-                    <div>Light (max)</div>
-                    <div class="gauge-bar">
-                        <div class="gauge-fill" id="lightBar" style="background:#ffcd56"></div>
-                    </div>
-                    <div class="gauge">
-                        <span id="lightValue">–</span>
+                    <!-- Light box -->
+                    <div class="gauge-item">
+                        <div class="gauge-header">
+                            <span>Light (max)</span>
+                            <span id="lightValue">–</span>
+                        </div>
+                        <div class="gauge-bar">
+                            <div class="gauge-fill" id="lightBar" style="background:#ffcd56"></div>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="right">
                 <div class="box">
-                    <!-- <h3>Recent measurements</h3> -->
-
                     <table>
                         <thead>
                             <tr>
                                 <th>Time</th>
                                 <th>Temp [°C]</th>
                                 <th>Humidity [%]</th>
+                                <th>Moisture [%]</th>
                                 <th>Light (max)</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
-                            <!-- rows go here -->
+                            <!-- rows -->
                         </tbody>
                     </table>
                 </div>
@@ -261,6 +281,8 @@
 
     <script>
         const root = document.documentElement;
+        let lastFrom;
+        let lastTo;
 
         function setTheme(theme) {
             root.setAttribute("data-theme", theme);
@@ -284,11 +306,13 @@
             tbody.innerHTML = "";
 
             rows.forEach(p => {
+                let soilperc = Math.min((p.soil / 4095) * 100, 100).toFixed(1);
                 const tr = document.createElement("tr");
                 tr.innerHTML = `
       <td>${new Date(p.ts).toLocaleString("sr-Latn-RS")}</td>
       <td>${p.t.toFixed(1)}</td>
       <td>${p.rh.toFixed(1)}</td>
+      <td>${soilperc}</td>
       <td>${p.light}</td>
     `;
                 tbody.appendChild(tr);
@@ -340,8 +364,6 @@
             autoRange = true,
             instanceKey
         }) {
-            let lastFrom = null;
-            let lastTo = null;
             const allPoints = datasets.flatMap(ds => ds.values);
 
             const range = autoRange
@@ -467,44 +489,6 @@
 
             if (!rows || rows.length === 0) return;
 
-            const dayNightPlugin = {
-                id: 'dayNight',
-                beforeDraw(chart) {
-                    const { ctx, chartArea, scales } = chart;
-                    if (!chartArea) return;
-
-                    const xScale = scales.x;
-                    const { top, bottom } = chartArea;
-
-                    ctx.save();
-
-                    const start = xScale.min;
-                    const end = xScale.max;
-
-                    const hourMs = 60 * 60 * 1000;
-                    let t = start - (start % hourMs);
-
-                    while (t < end) {
-                        const date = new Date(t);
-                        const hour = date.getHours();
-
-                        // noć: 20–06
-                        const isNight = hour >= 20 || hour < 6;
-
-                        if (isNight) {
-                            const x1 = xScale.getPixelForValue(t);
-                            const x2 = xScale.getPixelForValue(t + hourMs);
-
-                            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
-                            ctx.fillRect(x1, top, x2 - x1, bottom - top);
-                        }
-
-                        t += hourMs;
-                    }
-                    ctx.restore();
-                }
-            };
-
             const tempData = rows.map(p => ({ x: p.ts, y: p.temp_avg }));
             const humData = rows.map(p => ({ x: p.ts, y: p.hum_avg }));
             const lightData = rows.map(p => ({ x: p.ts, y: p.light_max }));
@@ -551,10 +535,7 @@
 
             makeChart({
                 canvasId: "lightChart",
-                label: "Light",
-                data: lightData,
                 yLabel: "Light",
-                color: "--light",
                 yMin: 0,
                 yMax: 4095,
                 instanceKey: "lightChartInstance",
@@ -584,10 +565,15 @@
             document.getElementById("humBar").style.width =
                 Math.min(Math.max(hum, 0), 100) + "%";
 
+            const soil = Math.min(data.soil / 4095 * 100, 100);
+            document.getElementById("soilValue").textContent = soil.toFixed(0);
+            document.getElementById("soilBar").style.width =
+                Math.min(Math.max(soil, 0), 100) + "%";
+
             const light = data.light;
             document.getElementById("lightValue").textContent = light.toFixed(0);
             document.getElementById("lightBar").style.width =
-                Math.min(light / 4095 * 100, 100) + "%";
+                Math.min(Math.max(light / 4095 * 100, 0), 100) + "%";
         }
 
         // initial load
