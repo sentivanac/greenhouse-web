@@ -1,0 +1,151 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 20px;
+    box-sizing: border-box;
+    background: var(--panel);
+}
+
+.box {
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    max-height: 80vh;
+    overflow: auto;
+}
+
+th {
+    background: var(--grid);
+}
+
+th,
+td {
+    border: 1px solid var(--border);
+    padding: 6px 8px;
+    text-align: center;
+    color: var(--text);
+}
+
+.gauge .label {
+    font-size: 14px;
+    color: #666;
+}
+
+.gauge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.gauge-item {
+    margin-bottom: 46px;
+}
+
+.gauge-item:last-child {
+    margin-bottom: 0;
+}
+
+.gauge .unit {
+    font-size: 16px;
+    color: #666;
+}
+
+.gauge-bar {
+    width: 100%;
+    height: 20px;
+    background: var(--gauge-track);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.gauge-fill {
+    height: 100%;
+    width: 0%;
+    background: #ff6384;
+    transition: width 0.3s ease;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.top-layout {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 20px;
+}
+
+.chart-box {
+    height: 100px;
+}
+
+.bottom-layout {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 20px;
+}
+
+.leftalign {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.box.date-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+:root {
+    --bg: #f6f6f6;
+    --panel: #ffffff;
+    --border: #cccccc;
+    --text: #111111;
+    --muted: #666666;
+
+    --grid: rgba(0, 0, 0, 0.08);
+
+    --temp: #ff6384;
+    --hum: #36a2eb;
+    --light: #ffcd56;
+    --soil: #8bc34a;
+
+    --gauge-bg: #eeeeee;
+    --gauge-track: #dddddd;
+}
+
+[data-theme="dark"] {
+    --bg: #121212;
+    --panel: #1e1e1e;
+    --border: #333333;
+    --text: #eaeaea;
+    --muted: #aaaaaa;
+
+    --grid: rgba(255, 255, 255, 0.1);
+
+    --temp: #ff7b9c;
+    --hum: #5dade2;
+    --light: #ffd966;
+    --soil: #9ccc65;
+
+    --gauge-bg: #2a2a2a;
+    --gauge-track: #3a3a3a;
+}
+
+.flatpickr-input {
+    width: 80px;
+}
