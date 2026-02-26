@@ -15,6 +15,16 @@
 </head>
 
 <body>
+    <div class="topbar">
+        <div class="tabs">
+            <a href="/index.html" class="tab active">Overview</a>
+            <a href="/table.html" class="tab">Table</a>
+        </div>
+        <div class="actions">
+            <button id="themeToggle">Toggle theme</button>
+        </div>
+    </div>
+
     <div class="container">
         <!-- <h2>Overview</h2> -->
         <div class="top-layout">
@@ -77,10 +87,10 @@
                         <thead>
                             <tr>
                                 <th>Time</th>
-                                <th>Temp [°C]</th>
-                                <th>Humidity [%]</th>
-                                <th>Moisture [%]</th>
-                                <th>Light (max)</th>
+                                <th>Temp<br>[°C]</th>
+                                <th>Humidity<br>[%]</th>
+                                <th>Moisture<br>[%]</th>
+                                <th>Light<br>(max)</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
@@ -122,9 +132,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="leftalign">
-            <button id="themeToggle">Toggle theme</button>
         </div>
     </div>
     <script src="/js/script.js"></script>

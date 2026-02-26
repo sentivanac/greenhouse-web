@@ -49,7 +49,7 @@ function soilToPercent(adc) {
 // init
 const saved = localStorage.getItem("theme") || "dark";
 setTheme(saved);
-async function loadRecent(limit = 10) {
+async function loadRecent(limit = 9) {
     const res = await fetch(`/api/recent?limit=${limit}`);
     const rows = await res.json();
 
@@ -245,8 +245,6 @@ async function loadHistory(from, to) {
     const lightData = rows.map(p => ({ x: p.ts, y: p.light_max }));
     let soilData = rows.map(p => ({ x: p.ts, y: soilToPercent(p.soil_avg) }));
     soilData = clampUpward(soilData, 8);
-
-    console.log(soilData);
 
     luxon.Settings.defaultLocale = "sr-Latn-RS";
 

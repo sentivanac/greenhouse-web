@@ -1,3 +1,15 @@
+const root = document.documentElement;
+
+function setTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+}
+
+document.getElementById("themeToggle").onclick = () => {
+    const current = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    setTheme(current);
+    loadHistory(lastFrom, lastTo); // rerender charts
+};
+
 function soilToPercent(adc) {
 
     const min = 1320;
@@ -36,5 +48,8 @@ async function loadRecent(limit = 200) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("theme") || "dark";
+    setTheme(saved);
+
     loadRecent(200);
 });

@@ -1,3 +1,45 @@
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    max-width: 1000px;
+    margin: 20px auto 0 auto;
+    padding: 0 20px;
+}
+
+.tabs {
+    display: flex;
+    gap: 6px;
+}
+
+.tab {
+    text-decoration: none;
+    color: var(--text);
+
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+
+    background: var(--grid);
+    border-radius: 6px 6px 0 0;
+}
+
+.tab:hover {
+    background: var(--grid);
+}
+
+.tab.active {
+    background: var(--panel);
+    font-weight: 600;
+}
+
+
+.actions {
+    display: flex;
+    align-items: center;
+}
+
 body {
     font-family: sans-serif;
     margin: 0;
@@ -8,22 +50,38 @@ body {
 
 .container {
     max-width: 1000px;
-    margin: 40px auto;
+    margin: -1px auto 40px auto;
     padding: 20px;
     box-sizing: border-box;
     background: var(--panel);
+    border: 1px solid var(--border);
 }
 
 .box {
     padding: 20px;
     margin-bottom: 20px;
     border: 1px solid var(--border);
-    max-height: 80vh;
     overflow: auto;
+}
+
+.table-scroll {
+    max-height: 78vh;
+    overflow-y: auto;
+}
+
+tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.04);
 }
 
 th {
     background: var(--grid);
+}
+
+thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-bottom: 1px solid var(--border);
 }
 
 th,
@@ -32,6 +90,7 @@ td {
     padding: 6px 8px;
     text-align: center;
     color: var(--text);
+    white-space: nowrap;
 }
 
 .gauge .label {
@@ -144,6 +203,9 @@ table {
 
     --gauge-bg: #2a2a2a;
     --gauge-track: #3a3a3a;
+    tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.05);
+}
 }
 
 .flatpickr-input {

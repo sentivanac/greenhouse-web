@@ -10,20 +10,31 @@
 
 <body>
 
+<div class="topbar">
+    <div class="tabs">
+        <a href="/index.html" class="tab">Overview</a>
+        <a href="/table.html" class="tab active">Table</a>
+    </div>
+    <div class="actions">
+        <button id="themeToggle">Toggle theme</button>
+    </div>
+</div>
+
 <div class="container">
 
     <div class="box">
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Temp [°C]</th>
-                    <th>Humidity [%]</th>
-                    <th>Moisture [%]</th>
-                    <th>Light (max)</th>
-                </tr>
-            </thead>
-
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Temp [°C]</th>
+                        <th>Humidity [%]</th>
+                        <th>Moisture [%]</th>
+                        <th>Light (max)</th>
+                    </tr>
+                </thead>
+            </div>
             <tbody id="tableBody">
             </tbody>
         </table>
